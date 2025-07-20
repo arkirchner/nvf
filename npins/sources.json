@@ -35,9 +35,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "2dd4c040880b271861369b361489a2d418d42648",
-      "url": "https://github.com/yetone/avante.nvim/archive/2dd4c040880b271861369b361489a2d418d42648.tar.gz",
-      "hash": "01j92m0qhd5g6m92rp0qnr4vqqgfrhbx91jbrrcjj1npizynxjm1"
+      "revision": "154e5f578f8925135a9dd23764d4c33a10c7ae36",
+      "url": "https://github.com/yetone/avante.nvim/archive/154e5f578f8925135a9dd23764d4c33a10c7ae36.tar.gz",
+      "hash": "0hx5ccfkn7ljnprzl6qwvb9ba86zrkqysh18zvnaq360g95d4ca1"
     },
     "base16": {
       "type": "Git",
@@ -442,6 +442,22 @@
       "url": "https://github.com/elixir-tools/elixir-tools.nvim/archive/eeb2b5a2e99e1646861a104f108c5818dd3973dc.tar.gz",
       "hash": "1l0xjis8jp5mf3v42f9xsjmwpjskf6zk6brpr8l39sp1bjn9z4x7"
     },
+    "everforest": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "sainnhe",
+        "repo": "everforest"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "v0.3.0",
+      "revision": "1e625639362661972821e83d8bbe528b8981a05f",
+      "url": "https://api.github.com/repos/sainnhe/everforest/tarball/v0.3.0",
+      "hash": "18h7mwr9lpsdsdi90vn4nc868g50li27xvylrs2srppfjr7kvl7w"
+    },
     "fastaction-nvim": {
       "type": "Git",
       "repository": {
@@ -675,6 +691,22 @@
       "revision": "1a1eceafe54b5081eae4cb91c723abd1d450f34b",
       "url": "https://github.com/phaazon/hop.nvim/archive/1a1eceafe54b5081eae4cb91c723abd1d450f34b.tar.gz",
       "hash": "08h18cam2yr57qvfsnf1bra28vbl6013wlchnr5crb757xw8aysa"
+    },
+    "hunk-nvim": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "julienvincent",
+        "repo": "hunk.nvim"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "v1.8.0",
+      "revision": "1e0a4d719c780bb8b0690a54915601508ced321e",
+      "url": "https://api.github.com/repos/julienvincent/hunk.nvim/tarball/v1.8.0",
+      "hash": "036cwnswx36m048mvlwa8rr9baclf7lrgjlq065pb4w13c4drbmx"
     },
     "hydra-nvim": {
       "type": "GitRelease",
@@ -1530,6 +1562,22 @@
       "url": "https://github.com/IogaMaster/neocord/archive/2ebf3792a8100376bb65fd66d5dbf60f50af7529.tar.gz",
       "hash": "1ycx26ppfb5djxji1mwamr7ra29z8sm0fs9a6hhwn0l69x06x353"
     },
+    "neogit": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "NeogitOrg",
+        "repo": "neogit"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "v2.0.0",
+      "revision": "7f97dbfc5af3b898c6660d927c23e3a96a5bd069",
+      "url": "https://api.github.com/repos/NeogitOrg/neogit/tarball/v2.0.0",
+      "hash": "0nyv64ai3765if7bdfyx01a0xmsmhm8cjvxyvh2s40bzvkx8xy17"
+    },
     "neorg": {
       "type": "Git",
       "repository": {
@@ -2318,6 +2366,19 @@
       "revision": "d1bc5421ef3e8edc5101e37edbb7de6639207a09",
       "url": "https://github.com/nanotee/sqls.nvim/archive/d1bc5421ef3e8edc5101e37edbb7de6639207a09.tar.gz",
       "hash": "1j4n5c8h1iriqzsjxr0wvz70g9lf6d4lm3nyxlpwy9dqmbj8w0kd"
+    },
+    "supermaven-nvim": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "supermaven-inc",
+        "repo": "supermaven-nvim"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "07d20fce48a5629686aefb0a7cd4b25e33947d50",
+      "url": "https://github.com/supermaven-inc/supermaven-nvim/archive/07d20fce48a5629686aefb0a7cd4b25e33947d50.tar.gz",
+      "hash": "1h9h98wsnfhkfdmdxjvr2d4idhrvp4i56pp4q6l0m4d2i0ldcgfp"
     },
     "tabular": {
       "type": "Git",

@@ -24,6 +24,10 @@
   module interface. You may set [](#opt-vim.clipboard.registers) appropriately
   to configure Neovim to use the system clipboard.
 
+- Changed which-key group used for gitsigns from `<leader>g` to `<leader>h` to
+  align with the "hunks" themed mapping and avoid conflict with the new [neogit]
+  group.
+
 [NotAShelf](https://github.com/notashelf):
 
 [typst-preview.nvim]: https://github.com/chomosuke/typst-preview.nvim
@@ -32,6 +36,7 @@
 [yazi.nvim]: https://github.com/mikavilpas/yazi.nvim
 [snacks.nvim]: https://github.com/folke/snacks.nvim
 [oil.nvim]: https://github.com/stevearc/oil.nvim
+[hunk.nvim]: https://github.com/julienvincent/hunk.nvim
 
 - Add [typst-preview.nvim] under
   `languages.typst.extensions.typst-preview-nvim`.
@@ -100,6 +105,8 @@
   relevant packages in a simple UI.
   - This deprecates `vim.useSystemClipboard` as well, see breaking changes
     section above for migration options.
+- Add [hunk.nvim], Neovim plugin & tool for splitting diffs in Neovim. Available
+  as `vim.git.hunk-nvim`
 
 [amadaluzia](https://github.com/amadaluzia):
 
@@ -378,7 +385,10 @@
 
 [poz](https://poz.pet):
 
+[everforest]: https://github.com/sainnhe/everforest
+
 - Fix gitsigns null-ls issue.
+- Add [everforest] theme support.
 
 [Haskex](https://github.com/haskex):
 
@@ -424,7 +434,7 @@
 
 - Add missing `transparent` option for existing
   [onedark.nvim](https://github.com/navarasu/onedark.nvim) theme.
-  
+
 [theutz](https://github.com/theutz):
 
 - Added "auto" flavour for catppuccin theme
@@ -433,10 +443,35 @@
 
 [solarized.nvim]: https://github.com/maxmx03/solarized.nvim
 [smart-splits.nvim]: https://github.com/mrjones2014/smart-splits.nvim
+[neogit]: https://github.com/NeogitOrg/neogit
 
 - Add [solarized.nvim] theme with support for multiple variants
-
-- Add [smart-splits.nvim] for navigating between Neovim windows and terminal multiplexer panes.
-  Available at `vim.utility.smart-splits`.
-
+- Add [smart-splits.nvim] for navigating between Neovim windows and terminal
+  multiplexer panes. Available at `vim.utility.smart-splits`.
+- Restore vim-dirtytalk plugin and fix ordering with spellcheck in generated
+  config.
 - Fix lualine separator options
+- Add [neogit], an interactive and powerful Git interface for Neovim, inspired
+  by Magit
+- Allow deregistering which-key binds or groups by setting them to `null`
+
+[justDeeevin](https://github.com/justDeeevin):
+
+[supermaven-nvim]: https://github.com/supermaven-inc/supermaven-nvim
+
+- Add [supermaven-nvim] plugin in `vim.assistant.supermaven-nvim` with `enable`
+  and `setupOpts`
+
+[trueNAHO](https://github.com/trueNAHO):
+
+- `flake-parts`'s `nixpkgs-lib` input follows nvf's `nixpkgs` input to reduce
+  download size.
+
+- `flake-utils`'s `systems` inputs follows nvf's `systems` input to transitively
+  leverage the pattern introduced in commit
+  [fc8206e7a61d ("flake: utilize
+  nix-systems for overridable flake systems")](https://github.com/NotAShelf/nvf/commit/fc8206e7a61d7eb02006f9010e62ebdb3336d0d2).
+
+[soliprem](https://github.com/soliprem):
+
+- fix broken `neorg` grammars
