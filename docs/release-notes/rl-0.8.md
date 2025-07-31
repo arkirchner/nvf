@@ -37,6 +37,7 @@
 [snacks.nvim]: https://github.com/folke/snacks.nvim
 [oil.nvim]: https://github.com/stevearc/oil.nvim
 [hunk.nvim]: https://github.com/julienvincent/hunk.nvim
+[undotree]: https://github.com/mbbill/undotree
 
 - Add [typst-preview.nvim] under
   `languages.typst.extensions.typst-preview-nvim`.
@@ -475,3 +476,10 @@
 [soliprem](https://github.com/soliprem):
 
 - fix broken `neorg` grammars
+
+[Cool-Game-Dev](https://github.com/Cool-Game-Dev):
+
+[nvim-biscuits]: https://github.com/code-biscuits/nvim-biscuits
+
+- Add [nvim-biscuits] to show block context. Available at
+  `vim.utility.nvim-biscuits`.
