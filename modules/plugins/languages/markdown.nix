@@ -61,6 +61,7 @@
           mdformat
           mdformat-gfm
           mdformat-frontmatter
+          mdformat-footnote
         ])) "mdformat";
     };
   };

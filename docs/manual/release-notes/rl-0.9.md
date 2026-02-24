@@ -183,7 +183,10 @@
 - Added [Selenen](https://github.com/kampfkarren/selene) for more diagnostics in
   `languages.lua`.
 
-- Added [`mdformat`](https://mdformat.rtfd.io/) support to `languages.python`.
+- Added [`mdformat`](https://mdformat.rtfd.io/) support to `languages.markdown`
+  with the extensions for [GFM](https://github.github.com/gfm/),
+  [front matter](https://www.markdownlang.com/advanced/frontmatter.html) and
+  [footnotes](https://www.markdownguide.org/extended-syntax/#footnotes).
 
 - Added XML syntax highlighting, LSP support and formatting
 
