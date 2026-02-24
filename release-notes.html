@@ -1842,9 +1842,33 @@ settings (nvf's <a class="option-reference" href="options.html#option-vim-keymap
 </ul>
 <p><a href="https://github.com/snoweuph">Snoweuph</a></p>
 <ul>
-<li>Fix <code>vim.assistant.codecompanion-nvim.setupOpts.display.diff.provider</code> to only
+<li>
+<p>"Correct <code>languages.go.treesitter</code> to contain all Go file types.
+<code>languages.go.treesitter.package</code> is now <code>languages.go.treesitter.goPackage</code>.
+New are:</p>
+<ul>
+<li>
+<p><code>languages.go.treesitter.goPackage</code>.</p>
+</li>
+<li>
+<p><code>languages.go.treesitter.gomodPackage</code>.</p>
+</li>
+<li>
+<p><code>languages.go.treesitter.gosumPackage</code>.</p>
+</li>
+<li>
+<p><code>languages.go.treesitter.goworkPackage</code>.</p>
+</li>
+<li>
+<p><code>languages.go.treesitter.gotmplPackage</code>.</p>
+</li>
+</ul>
+</li>
+<li>
+<p>Fix <code>vim.assistant.codecompanion-nvim.setupOpts.display.diff.provider</code> to only
 allow valid options. <code>default</code> is no longer valid. <code>inline</code> and <code>split</code> are
-two new valid options.</li>
+two new valid options.</p>
+</li>
 </ul>
 <h2 id="sec-release-0-9-changelog">Changelog</h2>
 <p><a href="https://github.com/taylrfnt">taylrfnt</a></p>
@@ -1867,6 +1891,10 @@ following:</p>
 <li>Attempt to adapt nvim-treesitter to (breaking) Nixpkgs changes. Some
 treesitter grammars were changed to prefer <code>grammarPlugins</code> over
 <code>builtGrammars</code>.</li>
+</ul>
+<p><a href="https://github.com/notashelf">NotAShelf</a>:</p>
+<ul>
+<li>Lazyload noice.nvim and nvim-web-devicons on <code>DeferredUIEnter</code></li>
 </ul>
 <p><a href="https://github.com/jfeo">jfeo</a>:</p>
 <ul>
@@ -1988,20 +2016,52 @@ formatter.</p>
 <code>languages.lua</code>.</p>
 </li>
 <li>
+<p>Added <a href="https://mdformat.rtfd.io/"><code>mdformat</code></a> support to <code>languages.markdown</code>
+with the extensions for <a href="https://github.github.com/gfm/">GFM</a>,
+<a href="https://www.markdownlang.com/advanced/frontmatter.html">front matter</a> and
+<a href="https://www.markdownguide.org/extended-syntax/#footnotes">footnotes</a>.</p>
+</li>
+<li>
 <p>Added XML syntax highlighting, LSP support and formatting</p>
+</li>
+<li>
+<p>Added <a href="https://www.mypy-lang.org/">mypy</a> to <code>languages.python</code> for extra
+diagnostics.</p>
 </li>
 <li>
 <p>Added <a href="https://keats.github.io/tera/">tera</a> language support (syntax
 highlighting only).</p>
 </li>
 <li>
+<p>Added Debugging support to <code>languages.odin</code> with
+<a href="https://github.com/NANDquark/nvim-dap-odin">nvim-dap-odin</a>.</p>
+</li>
+<li>
+<p>Disabled notifications for
+<a href="https://github.com/NANDquark/nvim-dap-odin">nvim-dap-odin</a>, because it
+contain no use full information, only spam, and it can't be made lazy.</p>
+</li>
+<li>
 <p>Added <a href="https://golangci-lint.run/"><code>golangci-lint</code></a> for more diagnostics.</p>
+</li>
+<li>
+<p>updated default filetypes for
+<a href="https://github.com/Automattic/harper">harper-ls</a> to match what they are
+supposed to be.</p>
 </li>
 <li>
 <p>Added Makefile support via <code>languages.make</code>.</p>
 </li>
 <li>
+<p>Fix <code>languages.hcl</code> init, depending on <code>comment-nvim</code> by checking if it is
+enabled. Fixes a crash (#1350).</p>
+</li>
+<li>
 <p>Added Debugging support to <code>languages.php</code>.</p>
+</li>
+<li>
+<p>Added Formatting support to <code>languages.php</code> via
+<a href="https://github.com/PHP-CS-Fixer/PHP-CS-Fixer">PHP-CS-Fixer</a>.</p>
 </li>
 <li>
 <p>Didn't Add
@@ -2024,6 +2084,29 @@ equivalent to <code>:lua vim.keymap.set(..., { remap = true })</code></li>
 <ul>
 <li>Added <a href="https://github.com/MagicDuck/grug-far.nvim"><code>grug-far.nvim</code></a> the find
 and replace tool for neovim.</li>
+<li>Fix lsp <code>client.supports_method</code> deprecation warning in nvim v0.12.</li>
+<li>Add <a href="https://github.com/saghen/blink.indent"><code>blink.indent</code></a> indent guideline
+plugin.</li>
+</ul>
+<p><a href="https://github.com/Ladas552">Ladas552</a></p>
+<ul>
+<li>Changed <code>withRuby</code> to not be enabled by default</li>
+<li>Fix virtualtext mode in colorizer</li>
+</ul>
+<p><a href="https://github.com/horriblename">horriblename</a>:</p>
+<ul>
+<li>Ignore terminals by default in spell-checking</li>
+</ul>
+<p><a href="https://poz.pet">poz</a>:</p>
+<ul>
+<li>Add CMake support with <a href="https://github.com/neocmakelsp/neocmakelsp">neocmakelsp</a>.</li>
+<li>Add Arduino support with <a href="https://github.com/arduino/arduino-language-server">arduino-language-server</a>.</li>
+<li>Add GLSL support with <a href="https://github.com/nolanderc/glsl_analyzer">glsl_analyzer</a>.</li>
+</ul>
+<p><a href="https://github.com/itscrystalline">itscrystalline</a>:</p>
+<ul>
+<li><a href="https://github.com/hakonharnes/img-clip.nvim">img-clip.nvim</a>'s configuration now has it's own DAG entry, separate from
+image-nvim.</li>
 </ul>
 <!-- vim: set textwidth=80: -->
 </body></html></main>
