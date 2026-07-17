@@ -3,23 +3,28 @@
   stdenv,
   rustPlatform,
   fetchFromGitHub,
-  writeShellScriptBin,
+  rust-jemalloc-sys,
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "blink-cmp";
-  version = "1.8.0";
+  version = "1.10.2";
 
   src = fetchFromGitHub {
     owner = "Saghen";
     repo = "blink.cmp";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-JjlcPj7v9J+v1SDBYIub6jFEslLhZGHmsipV1atUAFo=";
+    hash = "sha256-C1FpyGw0f35NdHvDUGPXxmKdOgw3SpIteK1gAjVy6Ns=";
   };
 
   forceShare = [
     "man"
     "info"
   ];
+
+  # Tries to call git
+  preBuild = ''
+    rm build.rs
+  '';
 
   postInstall = ''
     cp -r {lua,plugin} "$out"
@@ -31,15 +36,12 @@ rustPlatform.buildRustPackage (finalAttrs: {
     mv "$out/lib" "$out/target/release"
   '';
 
-  cargoHash = "sha256-Qdt8O7IGj2HySb1jxsv3m33ZxJg96Ckw26oTEEyQjfs=";
+  # From the blink.cmp flake
+  buildInputs = lib.optionals stdenv.hostPlatform.isAarch64 [rust-jemalloc-sys];
 
-  nativeBuildInputs = [
-    (writeShellScriptBin "git" "exit 1")
-  ];
+  cargoHash = "sha256-z8koRYVM9mkgKB6rdZAKIfjZfinVUUpYAW0IvPgmjZ4=";
 
   env = {
-    RUSTC_BOOTSTRAP = true;
-
     # Those are the Linker args used by upstream. Without those, the build fails.
     # See:
     #  <https://github.com/saghen/blink.cmp/blob/main/.cargo/config.toml#L1C1-L11C2>

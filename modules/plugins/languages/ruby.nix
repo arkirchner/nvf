@@ -4,78 +4,51 @@
   lib,
   ...
 }: let
-  inherit (builtins) attrNames;
-  inherit (lib.options) mkEnableOption mkOption;
-  inherit (lib.meta) getExe;
+  inherit (lib.options) mkEnableOption mkOption literalExpression;
+  inherit (lib) genAttrs;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.nvim.types) mkGrammarOption diagnostics deprecatedSingleOrListOf;
-  inherit (lib.types) enum;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
+  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf enumWithRename;
+  inherit (lib.types) enum listOf;
 
   cfg = config.vim.languages.ruby;
 
   defaultServers = ["solargraph"];
-  servers = {
-    ruby_lsp = {
-      enable = true;
-      cmd = [(getExe pkgs.ruby-lsp)];
-      filetypes = ["ruby" "eruby"];
-      root_markers = ["Gemfile" ".git"];
-      init_options = {
-        formatter = "auto";
-      };
-    };
-
-    solargraph = {
-      enable = true;
-      cmd = [(getExe pkgs.rubyPackages.solargraph) "stdio"];
-      filetypes = ["ruby"];
-      root_markers = ["Gemfile" ".git"];
-      settings = {
-        solargraph = {
-          diagnostics = true;
-        };
-      };
-
-      flags = {
-        debounce_text_changes = 150;
-      };
-
-      init_options = {
-        formatting = true;
-      };
-    };
-  };
-
-  # testing
+  servers = ["ruby-lsp" "solargraph" "stimulus-language-server"];
 
   defaultFormat = ["rubocop"];
-  formats = {
-    rubocop = {
-      command = getExe pkgs.rubyPackages.rubocop;
-    };
-  };
+  formats = ["rubocop"];
 
   defaultDiagnosticsProvider = ["rubocop"];
-  diagnosticsProviders = {
-    rubocop = {
-      package = pkgs.rubyPackages.rubocop;
-    };
-  };
+  diagnosticsProviders = ["rubocop"];
 in {
   options.vim.languages.ruby = {
     enable = mkEnableOption "Ruby language support";
 
     treesitter = {
-      enable = mkEnableOption "Ruby treesitter" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "Ruby treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
       package = mkGrammarOption pkgs "ruby";
     };
 
     lsp = {
-      enable = mkEnableOption "Ruby LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "Ruby LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
 
       servers = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.ruby.lsp.servers" (enum (attrNames servers));
+        type = listOf (enumWithRename
+          "vim.languages.ruby.lsp.servers"
+          servers
+          {
+            ruby_lsp = "ruby-lsp";
+          });
         default = defaultServers;
         description = "Ruby LSP server to use";
       };
@@ -85,7 +58,7 @@ in {
       enable = mkEnableOption "Ruby formatter support" // {default = config.vim.languages.enableFormat;};
 
       type = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.ruby.format.type" (enum (attrNames formats));
+        type = deprecatedSingleOrListOf "vim.language.ruby.format.type" (enum formats);
         default = defaultFormat;
         description = "Ruby formatter to use";
       };
@@ -93,13 +66,16 @@ in {
 
     extraDiagnostics = {
       enable =
-        mkEnableOption "Ruby extra diagnostics support"
-        // {default = config.vim.languages.enableExtraDiagnostics;};
+        mkEnableOption "Ruby extra diagnostics via nvim-lint"
+        // {
+          default = config.vim.languages.enableExtraDiagnostics;
+          defaultText = literalExpression "config.vim.languages.enableExtraDiagnostics";
+        };
 
-      types = diagnostics {
-        langDesc = "Ruby";
-        inherit diagnosticsProviders;
-        inherit defaultDiagnosticsProvider;
+      types = mkOption {
+        type = listOf (enum diagnosticsProviders);
+        default = defaultDiagnosticsProvider;
+        description = "extra Ruby diagnostics providers";
       };
     };
   };
@@ -111,37 +87,32 @@ in {
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (n: {
-          name = n;
-          value = servers.${n};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["ruby" "eruby"];
+        });
+      };
     })
 
     (mkIf cfg.format.enable {
       vim.formatter.conform-nvim = {
         enable = true;
-        setupOpts = {
-          formatters_by_ft.ruby = cfg.format.type;
-          formatters =
-            mapListToAttrs (name: {
-              inherit name;
-              value = formats.${name};
-            })
-            cfg.format.type;
-        };
+        presets = genAttrs cfg.format.type (_: {enable = true;});
+        setupOpts.formatters_by_ft.ruby = cfg.format.type;
       };
     })
 
     (mkIf cfg.extraDiagnostics.enable {
-      vim.diagnostics.nvim-lint = {
-        enable = true;
-        linters_by_ft.ruby = cfg.extraDiagnostics.types;
-        linters = mkMerge (map (name: {
-            ${name}.cmd = getExe diagnosticsProviders.${name}.package;
-          })
-          cfg.extraDiagnostics.types);
+      vim.diagnostics = {
+        presets = genAttrs cfg.extraDiagnostics.types (_: {enable = true;});
+        nvim-lint = {
+          enable = true;
+          linters_by_ft = {
+            ruby = cfg.extraDiagnostics.types;
+            eruby = cfg.extraDiagnostics.types;
+          };
+        };
       };
     })
   ]);

@@ -48,7 +48,7 @@ in {
                 default_on_attach(client, bufnr)
 
                 ${optionalString cfg.inlayHints.enable ''
-                if client and client.supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint) then
+                if client and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint) then
                   vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr }), { bufnr = bufnr })
                 end
               ''}
@@ -103,8 +103,34 @@ in {
           ${mkBinding mappings.goToType "vim.lsp.buf.type_definition"}
           ${mkBinding mappings.listImplementations "vim.lsp.buf.implementation"}
           ${mkBinding mappings.listReferences "vim.lsp.buf.references"}
-          ${mkBinding mappings.nextDiagnostic "vim.diagnostic.goto_next"}
-          ${mkBinding mappings.previousDiagnostic "vim.diagnostic.goto_prev"}
+          ${mkBinding mappings.nextDiagnostic ''
+          function()
+            vim.diagnostic.jump({
+              count = 1,
+              on_jump = function(_, bufnr)
+                vim.diagnostic.open_float({
+                  scope = "cursor",
+                  bufnr = bufnr,
+                  focus = false,
+                })
+              end,
+            })
+          end
+        ''}
+          ${mkBinding mappings.previousDiagnostic ''
+          function()
+            vim.diagnostic.jump({
+              count = -1,
+              on_jump = function(_, bufnr)
+                vim.diagnostic.open_float({
+                  scope = "cursor",
+                  bufnr = bufnr,
+                  focus = false,
+                })
+              end,
+            })
+          end
+        ''}
           ${mkBinding mappings.openDiagnosticFloat "vim.diagnostic.open_float"}
           ${mkBinding mappings.documentHighlight "vim.lsp.buf.document_highlight"}
           ${mkBinding mappings.listDocumentSymbols "vim.lsp.buf.document_symbol"}

@@ -4,78 +4,59 @@
   lib,
   ...
 }: let
-  inherit (lib.options) mkEnableOption mkOption;
+  inherit (lib.options) literalExpression mkEnableOption mkOption;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.meta) getExe' getExe;
-  inherit (builtins) attrNames;
+  inherit (lib) genAttrs;
   inherit (lib.types) enum listOf;
-  inherit (lib.nvim.types) mkGrammarOption diagnostics;
-  inherit (lib.generators) mkLuaInline;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
+  inherit (lib.nvim.types) mkGrammarOption;
 
   cfg = config.vim.languages.kotlin;
 
   defaultServers = ["kotlin-language-server"];
-  servers = {
-    kotlin-language-server = {
-      enable = true;
-      cmd = [(getExe' pkgs.kotlin-language-server "kotlin-language-server")];
-      filetypes = ["kotlin"];
-      root_markers = [
-        "settings.gradle" # Gradle (multi-project)
-        "settings.gradle.kts" # Gradle (multi-project)
-        "build.xml" # Ant
-        "pom.xml" # Maven
-        "build.gradle" # Gradle
-        "build.gradle.kts" # gradle
-      ];
-      init_options = {
-        storagePath = mkLuaInline "
-        vim.fs.root(vim.fn.expand '%:p:h',
-          {
-            'settings.gradle', -- Gradle (multi-project)
-            'settings.gradle.kts', -- Gradle (multi-project)
-            'build.xml', -- Ant
-            'pom.xml', -- Maven
-            'build.gradle', -- Gradle
-            'build.gradle.kts', -- Gradle
-          }
-        )";
-      };
-    };
-  };
+  servers = ["kotlin-language-server"];
 
   defaultDiagnosticsProvider = ["ktlint"];
-  diagnosticsProviders = {
-    ktlint = {
-      package = pkgs.ktlint;
-    };
-  };
+  diagnosticsProviders = ["ktlint"];
 in {
   options.vim.languages.kotlin = {
     enable = mkEnableOption "Kotlin/HCL support";
 
     treesitter = {
-      enable = mkEnableOption "Kotlin treesitter" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "Kotlin treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
       package = mkGrammarOption pkgs "kotlin";
     };
 
     lsp = {
-      enable = mkEnableOption "Kotlin LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "Kotlin LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
       servers = mkOption {
-        type = listOf (enum (attrNames servers));
+        type = listOf (enum servers);
         default = defaultServers;
         description = "Kotlin LSP server to use";
       };
     };
 
     extraDiagnostics = {
-      enable = mkEnableOption "extra Kotlin diagnostics" // {default = config.vim.languages.enableExtraDiagnostics;};
+      enable =
+        mkEnableOption "extra Kotlin diagnostics via nvim-lint"
+        // {
+          default = config.vim.languages.enableExtraDiagnostics;
+          defaultText = literalExpression "config.vim.languages.enableExtraDiagnostics";
+        };
 
-      types = diagnostics {
-        langDesc = "Kotlin";
-        inherit diagnosticsProviders;
-        inherit defaultDiagnosticsProvider;
+      types = mkOption {
+        type = listOf (enum diagnosticsProviders);
+        default = defaultDiagnosticsProvider;
+        description = "extra Kotlin diagnostics providers";
       };
     };
   };
@@ -86,23 +67,22 @@ in {
     })
 
     (mkIf cfg.extraDiagnostics.enable {
-      vim.diagnostics.nvim-lint = {
-        enable = true;
-        linters_by_ft.kotlin = cfg.extraDiagnostics.types;
-        linters = mkMerge (map (name: {
-            ${name}.cmd = getExe diagnosticsProviders.${name}.package;
-          })
-          cfg.extraDiagnostics.types);
+      vim.diagnostics = {
+        presets = genAttrs cfg.extraDiagnostics.types (_: {enable = true;});
+        nvim-lint = {
+          enable = true;
+          linters_by_ft.kotlin = cfg.extraDiagnostics.types;
+        };
       };
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (n: {
-          name = n;
-          value = servers.${n};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["kotlin"];
+        });
+      };
     })
   ]);
 }

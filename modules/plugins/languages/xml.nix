@@ -4,40 +4,39 @@
   lib,
   ...
 }: let
-  inherit (builtins) attrNames;
-  inherit (lib.options) mkOption mkEnableOption;
-  inherit (lib.meta) getExe;
+  inherit (lib.options) mkOption mkEnableOption literalExpression;
   inherit (lib.modules) mkIf mkMerge;
   inherit (lib.types) enum listOf;
   inherit (lib.nvim.types) mkGrammarOption;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
+  inherit (lib) genAttrs;
 
   cfg = config.vim.languages.xml;
 
   defaultServers = ["lemminx"];
-  servers = {
-    lemminx = {
-      enable = true;
-      cmd = [
-        (getExe pkgs.lemminx)
-      ];
-      filetypes = ["xml"];
-      root_markers = [".git"];
-    };
-  };
+  servers = ["lemminx"];
 in {
   options.vim.languages.xml = {
     enable = mkEnableOption "XML language support";
 
     treesitter = {
-      enable = mkEnableOption "XML treesitter" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "XML treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
       package = mkGrammarOption pkgs "xml";
     };
 
     lsp = {
-      enable = mkEnableOption "XML LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "XML LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
       servers = mkOption {
-        type = listOf (enum (attrNames servers));
+        type = listOf (enum servers);
         default = defaultServers;
         description = "XML LSP server to use";
       };
@@ -51,12 +50,12 @@ in {
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (name: {
-          inherit name;
-          value = servers.${name};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["xml"];
+        });
+      };
     })
   ]);
 }

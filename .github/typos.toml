@@ -9,6 +9,9 @@ default.extend-ignore-words-re = [
   "edn",
   "esy",
   "BA", # somehow "BANanaD3V" is valid, but BA is not...
-  "Emac"
+  "Emac",
+  "tese", # for glsl shaders
+  "Caue",
+  "bse", # ./modules/plugins/tabline/nvim-bufferline/nvim-bufferline.nix:20:78: "bse" should be "base".
 ]
 

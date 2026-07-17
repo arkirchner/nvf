@@ -4,55 +4,43 @@
   lib,
   ...
 }: let
-  inherit (builtins) attrNames;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.meta) getExe;
+  inherit (lib) genAttrs;
   inherit (lib.trivial) boolToString;
-  inherit (lib.options) mkEnableOption mkOption;
-  inherit (lib.types) enum package nullOr str bool;
+  inherit (lib.options) mkEnableOption mkOption literalExpression;
+  inherit (lib.types) enum package nullOr str bool listOf;
   inherit (lib.strings) optionalString;
-  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf;
+  inherit (lib.nvim.types) mkGrammarOption;
   inherit (lib.nvim.dag) entryAfter;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
 
   cfg = config.vim.languages.dart;
   ftcfg = cfg.flutter-tools;
 
   defaultServers = ["dart"];
-  servers = {
-    dart = {
-      enable = true;
-      cmd = [(getExe pkgs.dart) "language-server" "--protocol=lsp"];
-      filetypes = ["dart"];
-      root_markers = ["pubspec.yaml"];
-      init_options = {
-        onlyAnalyzeProjectsWithOpenFiles = true;
-        suggestFromUnimportedLibraries = true;
-        closingLabels = true;
-        outline = true;
-        flutterOutline = true;
-      };
-      settings = {
-        dart = {
-          completeFunctionCalls = true;
-          showTodos = true;
-        };
-      };
-    };
-  };
+  servers = ["dart"];
 in {
   options.vim.languages.dart = {
     enable = mkEnableOption "Dart language support";
 
     treesitter = {
-      enable = mkEnableOption "Dart treesitter" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "Dart treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
       package = mkGrammarOption pkgs "dart";
     };
 
     lsp = {
-      enable = mkEnableOption "Dart LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "Dart LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
       servers = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.dart.lsp.servers" (enum (attrNames servers));
+        type = listOf (enum servers);
         default = defaultServers;
         description = "Dart LSP server to use";
       };
@@ -63,6 +51,7 @@ in {
         description = "Enable Dart DAP support via flutter-tools";
         type = bool;
         default = config.vim.languages.enableDAP;
+        defaultText = literalExpression "config.vim.languages.enableDAP";
       };
     };
 
@@ -70,6 +59,7 @@ in {
       enable = mkOption {
         type = bool;
         default = config.vim.lsp.enable;
+        defaultText = literalExpression "config.vim.lsp.enable";
         description = "Enable flutter-tools for flutter support";
       };
 
@@ -130,12 +120,12 @@ in {
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (n: {
-          name = n;
-          value = servers.${n};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["dart"];
+        });
+      };
     })
 
     (mkIf ftcfg.enable {

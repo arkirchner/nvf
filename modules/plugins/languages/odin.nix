@@ -5,50 +5,86 @@
   ...
 }: let
   inherit (builtins) attrNames;
-  inherit (lib.options) mkEnableOption mkOption;
+  inherit (lib.options) mkEnableOption mkOption literalExpression;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.types) enum;
-  inherit (lib.meta) getExe;
-  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf;
+  inherit (lib.types) enum listOf;
+  inherit (lib.attrsets) genAttrs;
+  inherit (lib.lists) flatten;
   inherit (lib.generators) mkLuaInline;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
-
-  defaultServers = ["ols"];
-  servers = {
-    ols = {
-      enable = true;
-      cmd = [(getExe pkgs.ols)];
-      filetypes = ["odin"];
-      root_dir =
-        mkLuaInline
-        /*
-        lua
-        */
-        ''
-          function(bufnr, on_dir)
-            local fname = vim.api.nvim_buf_get_name(bufnr)
-            on_dir(util.root_pattern('ols.json', '.git', '*.odin')(fname))
-          end'';
-    };
-  };
+  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf enumWithRename;
 
   cfg = config.vim.languages.odin;
+
+  defaultServers = ["ols"];
+  servers = ["ols"];
+  defaultDebugger = ["lldb"];
+  dapConfigurations = {
+    lldb = [
+      {
+        name = "Launch";
+        type = "lldb";
+        request = "launch";
+        program = mkLuaInline ''
+          function()
+            return nvf_dap_cached_input(
+              'odin_lldb_launch_exe',
+              "Path to executable: ",
+              vim.fn.getcwd() .. "/",
+              "file")
+          end
+        '';
+        cwd = "\${workspaceFolder}";
+        stopOnEntry = false;
+        args = [];
+      }
+    ];
+  };
 in {
   options.vim.languages.odin = {
     enable = mkEnableOption "Odin language support";
 
     treesitter = {
-      enable = mkEnableOption "Odin treesitter" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "Odin treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
       package = mkGrammarOption pkgs "odin";
     };
 
     lsp = {
-      enable = mkEnableOption "Odin LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "Odin LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
 
       servers = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.odin.lsp.servers" (enum (attrNames servers));
+        type = listOf (enum servers);
         default = defaultServers;
         description = "Odin LSP server to use";
+      };
+    };
+
+    dap = {
+      enable =
+        mkEnableOption "Enable Odin Debug Adapter"
+        // {
+          default = config.vim.languages.enableDAP;
+          defaultText = literalExpression "config.vim.languages.enableDAP";
+        };
+
+      debugger = mkOption {
+        description = "Odin debugger to use";
+        type =
+          deprecatedSingleOrListOf "vim.languages.clang.dap.debugger"
+          (enumWithRename "vim.languages.clang.dap.debugger" (attrNames dapConfigurations) {
+            codelldb = "lldb";
+          });
+
+        default = defaultDebugger;
       };
     };
   };
@@ -60,12 +96,20 @@ in {
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (n: {
-          name = n;
-          value = servers.${n};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["odin"];
+        });
+      };
+    })
+
+    (mkIf cfg.dap.enable {
+      vim.debugger.nvim-dap = {
+        enable = true;
+        presets = genAttrs cfg.dap.debugger (_: {enable = true;});
+        configurations.odin = flatten (map (name: dapConfigurations.${name}) cfg.dap.debugger);
+      };
     })
   ]);
 }

@@ -4,63 +4,50 @@
   lib,
   ...
 }: let
-  inherit (builtins) attrNames;
-  inherit (lib.options) mkEnableOption mkOption;
+  inherit (lib.options) mkEnableOption mkOption literalExpression;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.meta) getExe;
-  inherit (lib.types) enum;
-  inherit (lib.generators) mkLuaInline;
-  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf;
+  inherit (lib) genAttrs;
+  inherit (lib.types) enum listOf;
+  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf enumWithRename;
   inherit (lib.nvim.dag) entryAnywhere;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
 
   cfg = config.vim.languages.elixir;
 
-  defaultServers = ["elixirls"];
-  servers = {
-    elixirls = {
-      enable = true;
-      cmd = [(getExe pkgs.elixir-ls)];
-      filetypes = ["elixir" "eelixir" "heex" "surface"];
-      root_dir =
-        mkLuaInline
-        /*
-        lua
-        */
-        ''
-          function(bufnr, on_dir)
-            local fname = vim.api.nvim_buf_get_name(bufnr)
-            local matches = vim.fs.find({ 'mix.exs' }, { upward = true, limit = 2, path = fname })
-            local child_or_root_path, maybe_umbrella_path = unpack(matches)
-            local root_dir = vim.fs.dirname(maybe_umbrella_path or child_or_root_path)
-
-            on_dir(root_dir)
-          end
-        '';
-    };
-  };
+  defaultServers = ["elixir-ls"];
+  servers = ["elixir-ls"];
 
   defaultFormat = ["mix"];
-  formats = {
-    mix = {
-      command = "${pkgs.elixir}/bin/mix";
-    };
-  };
+  formats = ["mix"];
 in {
   options.vim.languages.elixir = {
     enable = mkEnableOption "Elixir language support";
 
     treesitter = {
-      enable = mkEnableOption "Elixir treesitter" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "Elixir treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
       package = mkGrammarOption pkgs "elixir";
       heexPackage = mkGrammarOption pkgs "heex";
       eexPackage = mkGrammarOption pkgs "eex";
     };
 
     lsp = {
-      enable = mkEnableOption "Elixir LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "Elixir LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
       servers = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.elixir.lsp.servers" (enum (attrNames servers));
+        type = listOf (enumWithRename
+          "vim.languages.elixir.lsp.servers"
+          servers
+          {
+            elixirls = "elixir-ls";
+          });
         default = defaultServers;
         description = "Elixir LSP server to use";
       };
@@ -70,7 +57,7 @@ in {
       enable = mkEnableOption "Elixir formatting" // {default = config.vim.languages.enableFormat;};
 
       type = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.elixir.format.type" (enum (attrNames formats));
+        type = deprecatedSingleOrListOf "vim.language.elixir.format.type" (enum formats);
         default = defaultFormat;
         description = "Elixir formatter to use";
       };
@@ -92,26 +79,19 @@ in {
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (n: {
-          name = n;
-          value = servers.${n};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["elixir" "eelixir" "heex" "surface"];
+        });
+      };
     })
 
     (mkIf cfg.format.enable {
       vim.formatter.conform-nvim = {
         enable = true;
-        setupOpts = {
-          formatters_by_ft.elixir = cfg.format.type;
-          formatters =
-            mapListToAttrs (name: {
-              inherit name;
-              value = formats.${name};
-            })
-            cfg.format.type;
-        };
+        presets = genAttrs cfg.format.type (_: {enable = true;});
+        setupOpts.formatters_by_ft.elixir = cfg.format.type;
       };
     })
 

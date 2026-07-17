@@ -4,60 +4,75 @@
   lib,
   ...
 }: let
-  inherit (builtins) attrNames;
-  inherit (lib.options) mkOption mkEnableOption;
-  inherit (lib.meta) getExe' getExe;
+  inherit (lib.options) mkOption mkEnableOption literalExpression;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.types) enum;
-  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
+  inherit (lib.types) enum coercedTo listOf;
+  inherit (lib) genAttrs;
+  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf enumWithRename;
 
   cfg = config.vim.languages.json;
 
-  defaultServers = ["jsonls"];
-  servers = {
-    jsonls = {
-      cmd = [(getExe' pkgs.vscode-langservers-extracted "vscode-json-language-server") "--stdio"];
-      filetypes = ["json" "jsonc"];
-      init_options = {provideFormatter = true;};
-      root_markers = [".git"];
-    };
-  };
+  defaultServers = ["vscode-json-language-server"];
+  servers = ["vscode-json-language-server"];
 
   defaultFormat = ["jsonfmt"];
+  formats = ["jsonfmt" "prettier" "biome" "deno"];
 
-  formats = {
-    jsonfmt = {
-      command = getExe pkgs.jsonfmt;
-      args = ["-w" "-"];
-    };
-  };
+  formatType =
+    deprecatedSingleOrListOf
+    "vim.languages.json.format.type"
+    (coercedTo (enum ["prettierd"]) (_:
+      lib.warn
+      "vim.languages.json.format.type: prettierd is deprecated, use prettier instead"
+      "prettier")
+    (enum formats));
 in {
   options.vim.languages.json = {
     enable = mkEnableOption "JSON language support";
 
     treesitter = {
-      enable = mkEnableOption "JSON treesitter" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "JSON treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
 
-      package = mkGrammarOption pkgs "json";
+      jsonPackage = mkGrammarOption pkgs "json";
+      json5Package = mkGrammarOption pkgs "json5";
     };
 
     lsp = {
-      enable = mkEnableOption "JSON LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "JSON LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
 
       servers = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.json.lsp.servers" (enum (attrNames servers));
+        type = listOf (enumWithRename
+          "vim.languages.json.lsp.servers"
+          servers
+          {
+            jsonls = "vscode-json-language-server";
+          });
         default = defaultServers;
         description = "JSON LSP server to use";
       };
     };
 
     format = {
-      enable = mkEnableOption "JSON formatting" // {default = config.vim.languages.enableFormat;};
+      enable =
+        mkEnableOption "JSON formatting"
+        // {
+          default = config.vim.languages.enableFormat;
+          defaultText = literalExpression "config.vim.languages.enableFormat";
+        };
 
       type = mkOption {
         description = "JSON formatter to use";
-        type = deprecatedSingleOrListOf "vim.language.json.format.type" (enum (attrNames formats));
+        type = formatType;
         default = defaultFormat;
       };
     };
@@ -66,29 +81,29 @@ in {
   config = mkIf cfg.enable (mkMerge [
     (mkIf cfg.treesitter.enable {
       vim.treesitter.enable = true;
-      vim.treesitter.grammars = [cfg.treesitter.package];
+      vim.treesitter.grammars = [
+        cfg.treesitter.jsonPackage
+        cfg.treesitter.json5Package
+      ];
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (name: {
-          inherit name;
-          value = servers.${name};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["json" "jsonc" "json5"];
+        });
+      };
     })
 
     (mkIf cfg.format.enable {
       vim.formatter.conform-nvim = {
         enable = true;
-        setupOpts = {
-          formatters_by_ft.json = cfg.format.type;
-          formatters =
-            mapListToAttrs (name: {
-              inherit name;
-              value = formats.${name};
-            })
-            cfg.format.type;
+        presets = genAttrs cfg.format.type (_: {enable = true;});
+        setupOpts.formatters_by_ft = {
+          json = cfg.format.type;
+          jsonc = cfg.format.type;
+          json5 = cfg.format.type;
         };
       };
     })

@@ -4,42 +4,59 @@
   pkgs,
   ...
 }: let
-  inherit (builtins) attrNames;
-  inherit (lib.options) mkEnableOption mkOption;
+  inherit (lib.options) literalExpression mkEnableOption mkOption;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.meta) getExe;
+  inherit (lib) genAttrs;
   inherit (lib.types) enum listOf;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
   inherit (lib.nvim.types) mkGrammarOption;
 
   cfg = config.vim.languages.just;
 
   defaultServers = ["just-lsp"];
-  servers = {
-    just-lsp = {
-      enable = true;
-      cmd = [(getExe pkgs.just-lsp)];
-      filetypes = ["just"];
-      root_markers = [".git" "justfile"];
-    };
-  };
+  servers = ["just-lsp"];
+
+  defaultFormat = ["just"];
+  formats = ["just"];
 in {
   options.vim.languages.just = {
     enable = mkEnableOption "Just support";
 
     treesitter = {
       enable =
-        mkEnableOption "Just treesitter" // {default = config.vim.languages.enableTreesitter;};
+        mkEnableOption "Just treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
       package = mkGrammarOption pkgs "just";
     };
 
     lsp = {
       enable =
-        mkEnableOption "Just LSP support" // {default = config.vim.lsp.enable;};
+        mkEnableOption "Just LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
       servers = mkOption {
-        type = listOf (enum (attrNames servers));
+        type = listOf (enum servers);
         default = defaultServers;
         description = "Just LSP server to use";
+      };
+    };
+
+    format = {
+      enable =
+        mkEnableOption "Just formatting"
+        // {
+          default = config.vim.languages.enableFormat;
+          defaultText = literalExpression "config.vim.languages.enableFormat";
+        };
+
+      type = mkOption {
+        type = listOf (enum formats);
+        default = defaultFormat;
+        description = "Just formatter to use";
       };
     };
   };
@@ -53,12 +70,20 @@ in {
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (n: {
-          name = n;
-          value = servers.${n};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["just"];
+        });
+      };
+    })
+
+    (mkIf cfg.format.enable {
+      vim.formatter.conform-nvim = {
+        enable = true;
+        presets = genAttrs cfg.format.type (_: {enable = true;});
+        setupOpts.formatters_by_ft.just = cfg.format.type;
+      };
     })
   ]);
 }

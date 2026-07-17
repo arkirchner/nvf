@@ -1,13 +1,16 @@
 {
+  pins,
   stdenv,
   fetchFromGitHub,
   nodejs,
-  pnpm_9,
+  pnpm_11,
   pnpmConfigHook,
+  zstd,
   fetchPnpmDeps,
-  pins,
+  writableTmpDirAsHomeHook,
 }: let
   pin = pins.prettier-plugin-astro;
+  pnpm = pnpm_11;
 in
   stdenv.mkDerivation (finalAttrs: {
     pname = "prettier-plugin-astro";
@@ -19,18 +22,30 @@ in
       sha256 = pin.hash;
     };
 
+    # Upstream still ships a lockfileVersion 6.0 pnpm-lock.yaml, which pnpm 11
+    # refuses to use under --frozen-lockfile. Replace it with a pre-migrated
+    # lockfile (generated via `pnpm install --lockfile-only` on pnpm 11) so
+    # both the dependency fetch and the build itself see the same lockfile.
+    # FIXME: this sucks
+    postPatch = ''
+      cp ${./pnpm-lock.yaml} pnpm-lock.yaml
+    '';
+
     pnpmDeps = fetchPnpmDeps {
-      pnpm = pnpm_9;
-      inherit (finalAttrs) pname src;
-      fetcherVersion = 2;
-      hash = "sha256-K7pIWLkIIbUKDIcysfEtcf/eVMX9ZgyFHdqcuycHCNE=";
+      inherit pnpm;
+      inherit (finalAttrs) pname version src postPatch;
+      hash = "sha256-ODVuEvZbFDXDWUl2Bfp4inG37frUbbRM7bCQxRa2bpM=";
+      fetcherVersion = 4; # https://nixos.org/manual/nixpkgs/stable/#javascript-pnpm-fetcherVersion
     };
 
     nativeBuildInputs = [
       nodejs
-      (pnpmConfigHook.overrideAttrs {
-        propagatedBuildInputs = [pnpm_9];
+      writableTmpDirAsHomeHook
+      (pnpmConfigHook.override {
+        inherit pnpm;
       })
+      pnpm
+      zstd
     ];
 
     buildPhase = ''
@@ -41,13 +56,8 @@ in
       runHook postBuild
     '';
 
-    installPhase = ''
-      runHook preInstall
-
-      # mkdir -p $out/dist
+    preInstall = ''
       cp -r dist/ $out
       cp -r node_modules $out
-
-      runHook postInstall
     '';
   })

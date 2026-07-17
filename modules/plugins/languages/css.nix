@@ -4,61 +4,58 @@
   lib,
   ...
 }: let
-  inherit (builtins) attrNames;
-  inherit (lib.options) mkEnableOption mkOption;
-  inherit (lib.meta) getExe;
+  inherit (lib.options) mkEnableOption mkOption literalExpression;
+  inherit (lib) genAttrs;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.types) enum;
-  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
+  inherit (lib.types) enum coercedTo listOf;
+  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf enumWithRename;
 
   cfg = config.vim.languages.css;
 
-  defaultServer = ["cssls"];
-  servers = {
-    cssls = {
-      cmd = ["${pkgs.vscode-langservers-extracted}/bin/vscode-css-language-server" "--stdio"];
-      filetypes = ["css" "scss" "less"];
-      # needed to enable formatting
-      init_options = {provideFormatter = true;};
-      root_markers = [".git" "package.json"];
-      settings = {
-        css.validate = true;
-        scss.validate = true;
-        less.validate = true;
-      };
-    };
-  };
+  defaultServer = ["vscode-css-language-server"];
+  servers = ["vscode-css-language-server" "emmet-ls"];
 
   defaultFormat = ["prettier"];
-  formats = {
-    prettier = {
-      command = getExe pkgs.prettier;
-    };
+  formats = ["prettier" "biome" "biome-check" "biome-organize-imports" "deno"];
 
-    prettierd = {
-      command = getExe pkgs.prettierd;
-    };
-
-    biome = {
-      command = getExe pkgs.biome;
-    };
-  };
+  formatType =
+    deprecatedSingleOrListOf
+    "vim.languages.css.format.type"
+    (coercedTo (enum ["prettierd"]) (_:
+      lib.warn
+      "vim.languages.css.format.type: prettierd is deprecated, use prettier instead"
+      "prettier")
+    (enum formats));
 in {
   options.vim.languages.css = {
     enable = mkEnableOption "CSS language support";
 
     treesitter = {
-      enable = mkEnableOption "CSS treesitter" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "CSS treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
 
       package = mkGrammarOption pkgs "css";
     };
 
     lsp = {
-      enable = mkEnableOption "CSS LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "CSS LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
 
       servers = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.css.lsp.servers" (enum (attrNames servers));
+        type = listOf (enumWithRename
+          "vim.languages.css.lsp.servers"
+          servers
+          {
+            cssls = "vscode-css-language-server";
+          });
         default = defaultServer;
         description = "CSS LSP server to use";
       };
@@ -69,7 +66,7 @@ in {
 
       type = mkOption {
         description = "CSS formatter to use";
-        type = deprecatedSingleOrListOf "vim.language.css.format.type" (enum (attrNames formats));
+        type = formatType;
         default = defaultFormat;
       };
     };
@@ -82,26 +79,23 @@ in {
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (name: {
-          inherit name;
-          value = servers.${name};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = [
+            "css"
+            # TODO: split in their own modules
+            "less"
+          ];
+        });
+      };
     })
 
     (mkIf cfg.format.enable {
       vim.formatter.conform-nvim = {
         enable = true;
-        setupOpts = {
-          formatters_by_ft.css = cfg.format.type;
-          formatters =
-            mapListToAttrs (name: {
-              inherit name;
-              value = formats.${name};
-            })
-            cfg.format.type;
-        };
+        presets = genAttrs cfg.format.type (_: {enable = true;});
+        setupOpts.formatters_by_ft.css = cfg.format.type;
       };
     })
   ]);

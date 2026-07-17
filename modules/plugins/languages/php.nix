@@ -4,105 +4,113 @@
   lib,
   ...
 }: let
-  inherit (builtins) attrNames toString toFile;
-  inherit (lib.options) mkEnableOption mkOption;
-  inherit (lib.meta) getExe;
+  inherit (builtins) attrNames;
+  inherit (lib.options) mkEnableOption mkOption literalExpression;
+  inherit (lib) genAttrs;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.types) enum int attrs;
-  inherit (lib.nvim.lua) toLuaObject;
-  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
-  inherit (lib.generators) mkLuaInline;
+  inherit (lib.lists) flatten;
+  inherit (lib.types) enum listOf;
+  inherit (lib.nvim.types) mkGrammarOption enumWithRename;
 
   cfg = config.vim.languages.php;
 
   defaultServers = ["phpactor"];
-  servers = {
-    phpactor = {
-      enable = true;
-      cmd = [(getExe pkgs.phpactor) "language-server"];
-      filetypes = ["php"];
-      root_markers = [".git" "composer.json" ".phpactor.json" ".phpactor.yml"];
-      workspace_required = true;
-    };
+  servers = ["phpactor" "phan" "intelephense" "phpantom"];
 
-    phan = {
-      enable = true;
-      cmd = [
-        (getExe pkgs.php81Packages.phan)
-        "-m"
-        "json"
-        "--no-color"
-        "--no-progress-bar"
-        "-x"
-        "-u"
-        "-S"
-        "--language-server-on-stdin"
-        "--allow-polyfill-parser"
-      ];
-      filetypes = ["php"];
-      root_dir =
-        mkLuaInline
-        /*
-        lua
-        */
-        ''
-          function(bufnr, on_dir)
-            local fname = vim.api.nvim_buf_get_name(bufnr)
-            local cwd = assert(vim.uv.cwd())
-            local root = vim.fs.root(fname, { 'composer.json', '.git' })
+  defaultFormat = ["php-cs-fixer"];
+  formats = ["php-cs-fixer" "mago" "mago-fix"];
 
-            -- prefer cwd if root is a descendant
-            on_dir(root and vim.fs.relpath(cwd, root) and cwd)
-          end
-        '';
-    };
+  defaultDiagnosticsProvider = ["phpstan"];
+  diagnosticsProviders = ["phpstan" "mago_lint" "mago_analyze"];
 
-    intelephense = {
-      enable = true;
-      cmd = [(getExe pkgs.intelephense) "--stdio"];
-      filetypes = ["php"];
-      root_markers = ["composer.json" ".git"];
-    };
+  defaultDebugger = ["xdebug"];
+  dapConfigurations = {
+    xdebug = let
+      port = 9003;
+    in [
+      {
+        type = "xdebug";
+        request = "launch";
+        name = "Listen for XDebug at port ${toString port}";
+        inherit port;
+      }
+    ];
   };
 in {
   options.vim.languages.php = {
     enable = mkEnableOption "PHP language support";
 
     treesitter = {
-      enable = mkEnableOption "PHP treesitter" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "PHP treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
       package = mkGrammarOption pkgs "php";
     };
 
     lsp = {
-      enable = mkEnableOption "PHP LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "PHP LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
 
       servers = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.php.lsp.servers" (enum (attrNames servers));
+        type = listOf (enum servers);
         default = defaultServers;
         description = "PHP LSP server to use";
       };
     };
 
+    format = {
+      enable =
+        mkEnableOption "PHP formatting"
+        // {
+          default = config.vim.languages.enableFormat;
+          defaultText = literalExpression "config.vim.languages.enableFormat";
+        };
+
+      type = mkOption {
+        description = "PHP formatter to use";
+        type = listOf (enumWithRename
+          "vim.languages.php.format.type"
+          formats
+          {
+            php_cs_fixer = "php-cs-fixer";
+          });
+        default = defaultFormat;
+      };
+    };
+
     dap = {
-      enable = mkEnableOption "Enable PHP Debug Adapter" // {default = config.vim.languages.enableDAP;};
-      xdebug = {
-        adapter = mkOption {
-          type = attrs;
-          default = {
-            type = "executable";
-            command = "${pkgs.nodePackages_latest.nodejs}/bin/node";
-            args = [
-              "${pkgs.vscode-extensions.xdebug.php-debug}/share/vscode/extensions/xdebug.php-debug/out/phpDebug.js"
-            ];
-          };
-          description = "XDebug adapter to use for nvim-dap";
+      enable =
+        mkEnableOption "Enable PHP Debug Adapter"
+        // {
+          default = config.vim.languages.enableDAP;
+          defaultText = literalExpression "config.vim.languages.enableDAP";
         };
-        port = mkOption {
-          type = int;
-          default = 9003;
-          description = "Port to use for XDebug";
+
+      debugger = mkOption {
+        type = listOf (enum (attrNames dapConfigurations));
+        default = defaultDebugger;
+        description = "PHP debugger to use";
+      };
+    };
+
+    extraDiagnostics = {
+      enable =
+        mkEnableOption "extra PHP diagnostics via nvim-lint"
+        // {
+          default = config.vim.languages.enableExtraDiagnostics;
+          defaultText = literalExpression "config.vim.languages.enableExtraDiagnostics";
         };
+      types = mkOption {
+        type = listOf (enum diagnosticsProviders);
+        default = defaultDiagnosticsProvider;
+        description = "extra PHP diagnostics providers";
       };
     };
   };
@@ -114,29 +122,37 @@ in {
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (n: {
-          name = n;
-          value = servers.${n};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["php"];
+          root_markers = ["composer.json"];
+        });
+      };
+    })
+
+    (mkIf cfg.format.enable {
+      vim.formatter.conform-nvim = {
+        enable = true;
+        presets = genAttrs cfg.format.type (_: {enable = true;});
+        setupOpts.formatters_by_ft.php = cfg.format.type;
+      };
     })
 
     (mkIf cfg.dap.enable {
-      vim = {
-        debugger.nvim-dap = {
+      vim.debugger.nvim-dap = {
+        enable = true;
+        presets = genAttrs cfg.dap.debugger (_: {enable = true;});
+        configurations.php = flatten (map (name: dapConfigurations.${name}) cfg.dap.debugger);
+      };
+    })
+
+    (mkIf cfg.extraDiagnostics.enable {
+      vim.diagnostics = {
+        presets = genAttrs cfg.extraDiagnostics.types (_: {enable = true;});
+        nvim-lint = {
           enable = true;
-          sources.php-debugger = ''
-            dap.adapters.xdebug = ${toLuaObject cfg.dap.xdebug.adapter}
-            dap.configurations.php = {
-              {
-                  type = 'xdebug',
-                  request = 'launch',
-                  name = 'Listen for XDebug',
-                  port = ${toString cfg.dap.xdebug.port},
-              },
-            }
-          '';
+          linters_by_ft.php = cfg.extraDiagnostics.types;
         };
       };
     })

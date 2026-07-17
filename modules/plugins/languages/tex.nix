@@ -3,48 +3,46 @@
   pkgs,
   lib,
   ...
-}:
-let
-  inherit (builtins) attrNames;
-  inherit (lib.options) mkEnableOption mkOption;
+}: let
+  inherit (lib) genAttrs;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.types) package enum;
-  inherit (lib.nvim.types) deprecatedSingleOrListOf;
-  inherit (lib.meta) getExe;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
+  inherit (lib.options) literalExpression mkEnableOption mkOption;
+  inherit (lib.types) bool enum listOf package;
+  inherit (lib.nvim.types) mkGrammarOption;
 
   cfg = config.vim.languages.tex;
+  defaultServers = ["texlab"];
+  servers = ["texlab" "ltex-plus"];
 
-  defaultServers = [ "ltex-plus" ];
-  servers = {
-    "ltex-plus" = {
-      cmd = [ "${cfg.lsp.package}/bin/ltex-ls-plus" ];
-      filetypes = [ "bib" "context" "gitcommit" "html" "markdown" "org" "pandoc" "plaintex" "quarto" "mail" "mdx" "rmd" "rnoweb" "rst" "tex" "text" "typst" "xhtml" "ruby" ];
-      settings = {
-        ltex = {
-          language = "en-US";
-          additionalRules = {
-            enablePickyRules = true;
-          };
-          enabled = [ "bib" "context" "gitcommit" "html" "markdown" "org" "pandoc" "plaintex" "quarto" "mail" "mdx" "rmd" "rnoweb" "rst" "tex" "latex" "text" "typst" "xhtml" "ruby" ];
-        };
-      };
-    };
-  };
-in
-{
+  defaultFormat = ["tex-fmt"];
+  formats = ["tex-fmt" "latexindent"];
+in {
   options.vim.languages.tex = {
-    enable = mkEnableOption "Tex support and more";
+    enable = mkEnableOption "TeX language support";
+
+    treesitter = {
+      enable = mkOption {
+        type = bool;
+        default = config.vim.languages.enableTreesitter;
+        defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        description = "Enable TeX treesitter";
+      };
+      latexPackage = mkGrammarOption pkgs "latex";
+      bibtexPackage = mkGrammarOption pkgs "bibtex";
+    };
 
     lsp = {
-      enable = mkEnableOption "Tex LSP support (ltex-ls-plus)" // {
-        default = config.vim.lsp.enable;
-      };
+      enable =
+        mkEnableOption "TeX LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
 
       servers = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.tex.lsp.servers" (enum (attrNames servers));
+        description = "TeX LSP server to use";
+        type = listOf (enum servers);
         default = defaultServers;
-        description = "Tex LSP server to use";
       };
 
       package = mkOption {
@@ -53,15 +51,64 @@ in
         description = "ltex-ls-plus package";
       };
     };
+
+    format = {
+      enable =
+        mkEnableOption "TeX formatting"
+        // {
+          default = config.vim.languages.enableFormat;
+          defaultText = literalExpression "config.vim.languages.enableFormat";
+        };
+
+      type = mkOption {
+        type = listOf (enum formats);
+        default = defaultFormat;
+        description = "TeX formatter to use";
+      };
+    };
   };
+
   config = mkIf cfg.enable (mkMerge [
+    (mkIf cfg.treesitter.enable {
+      vim.treesitter.enable = true;
+      vim.treesitter.grammars = [
+        cfg.treesitter.latexPackage
+        cfg.treesitter.bibtexPackage
+      ];
+    })
+
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (n: {
-          name = n;
-          value = servers."${n}";
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["plaintex" "tex" "bib"];
+        }) // {
+          ltex-plus = {
+            cmd = ["${cfg.lsp.package}/bin/ltex-ls-plus"];
+            filetypes = ["bib" "context" "gitcommit" "html" "markdown" "org" "pandoc" "plaintex" "quarto" "mail" "mdx" "rmd" "rnoweb" "rst" "tex" "text" "typst" "xhtml" "ruby"];
+            settings = {
+              ltex = {
+                language = "en-US";
+                additionalRules = {
+                  enablePickyRules = true;
+                };
+                enabled = ["bib" "context" "gitcommit" "html" "markdown" "org" "pandoc" "plaintex" "quarto" "mail" "mdx" "rmd" "rnoweb" "rst" "tex" "latex" "text" "typst" "xhtml" "ruby"];
+              };
+            };
+          };
+        };
+      };
+    })
+
+    (mkIf cfg.format.enable {
+      vim.formatter.conform-nvim = {
+        enable = true;
+        presets = genAttrs cfg.format.type (_: {enable = true;});
+        setupOpts.formatters_by_ft = {
+          tex = cfg.format.type;
+          plaintex = cfg.format.type;
+        };
+      };
     })
   ]);
 }

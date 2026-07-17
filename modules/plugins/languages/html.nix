@@ -4,51 +4,40 @@
   lib,
   ...
 }: let
-  inherit (builtins) attrNames;
-  inherit (lib.meta) getExe;
-  inherit (lib.options) mkEnableOption mkOption;
+  inherit (lib.options) literalExpression mkEnableOption mkOption;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.types) bool enum;
+  inherit (lib.types) bool enum listOf;
+  inherit (lib) genAttrs;
   inherit (lib.lists) optional;
-  inherit (lib.nvim.types) mkGrammarOption diagnostics deprecatedSingleOrListOf;
+  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf;
   inherit (lib.nvim.dag) entryAnywhere;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
 
   cfg = config.vim.languages.html;
 
   defaultServers = ["superhtml"];
-  servers = {
-    superhtml = {
-      cmd = [(getExe pkgs.superhtml) "lsp"];
-      filetypes = ["html" "shtml" "htm"];
-      root_markers = ["index.html" ".git"];
-    };
-    emmet-ls = {
-      cmd = [(getExe pkgs.emmet-ls) "--stdio"];
-      filetypes = ["html" "shtml" "htm"];
-      root_markers = ["index.html" ".git"];
-    };
-  };
+  servers = [
+    "superhtml"
+    "emmet-ls"
+    "stimulus-language-server"
+    # deprecated
+    "angular-language-server"
+  ];
 
   defaultFormat = ["superhtml"];
-  formats = {
-    superhtml = {
-      command = "${pkgs.superhtml}/bin/superhtml";
-      args = ["fmt" "-"];
-    };
-  };
+  formats = ["superhtml" "biome" "prettier" "deno"];
 
   defaultDiagnosticsProvider = ["htmlhint"];
-  diagnosticsProviders = {
-    htmlhint = {
-      config.cmd = getExe pkgs.htmlhint;
-    };
-  };
+  diagnosticsProviders = ["htmlhint"];
 in {
   options.vim.languages.html = {
     enable = mkEnableOption "HTML language support";
     treesitter = {
-      enable = mkEnableOption "HTML treesitter support" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "HTML treesitter support"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
       package = mkGrammarOption pkgs "html";
       autotagHtml = mkOption {
         type = bool;
@@ -58,31 +47,46 @@ in {
     };
 
     lsp = {
-      enable = mkEnableOption "HTML LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "HTML LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
       servers = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.html.lsp.servers" (enum (attrNames servers));
+        type = listOf (enum servers);
         default = defaultServers;
         description = "HTML LSP server to use";
       };
     };
 
     format = {
-      enable = mkEnableOption "HTML formatting" // {default = config.vim.languages.enableFormat;};
+      enable =
+        mkEnableOption "HTML formatting"
+        // {
+          default = config.vim.languages.enableFormat;
+          defaultText = literalExpression "config.vim.languages.enableFormat";
+        };
 
       type = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.html.format.type" (enum (attrNames formats));
+        type = deprecatedSingleOrListOf "vim.language.html.format.type" (enum formats);
         default = defaultFormat;
         description = "HTML formatter to use";
       };
     };
 
     extraDiagnostics = {
-      enable = mkEnableOption "extra HTML diagnostics" // {default = config.vim.languages.enableExtraDiagnostics;};
+      enable =
+        mkEnableOption "extra HTML diagnostics via nvim-lint"
+        // {
+          default = config.vim.languages.enableExtraDiagnostics;
+          defaultText = literalExpression "config.vim.languages.enableExtraDiagnostics";
+        };
 
-      types = diagnostics {
-        langDesc = "HTML";
-        inherit diagnosticsProviders;
-        inherit defaultDiagnosticsProvider;
+      types = mkOption {
+        type = listOf (enum diagnosticsProviders);
+        default = defaultDiagnosticsProvider;
+        description = "extra HTML diagnostics providers";
       };
     };
   };
@@ -104,37 +108,29 @@ in {
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (n: {
-          name = n;
-          value = servers.${n};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["html" "xhtml"];
+        });
+      };
     })
 
     (mkIf (cfg.format.enable && !cfg.lsp.enable) {
       vim.formatter.conform-nvim = {
         enable = true;
-        setupOpts = {
-          formatters_by_ft.html = cfg.format.type;
-          formatters =
-            mapListToAttrs (name: {
-              inherit name;
-              value = formats.${name};
-            })
-            cfg.format.type;
-        };
+        presets = genAttrs cfg.format.type (_: {enable = true;});
+        setupOpts.formatters_by_ft.html = cfg.format.type;
       };
     })
 
     (mkIf cfg.extraDiagnostics.enable {
-      vim.diagnostics.nvim-lint = {
-        enable = true;
-        linters_by_ft.html = cfg.extraDiagnostics.types;
-        linters = mkMerge (map (name: {
-            ${name} = diagnosticsProviders.${name}.config;
-          })
-          cfg.extraDiagnostics.types);
+      vim.diagnostics = {
+        presets = genAttrs cfg.extraDiagnostics.types (_: {enable = true;});
+        nvim-lint = {
+          enable = true;
+          linters_by_ft.html = cfg.extraDiagnostics.types;
+        };
       };
     })
   ]);

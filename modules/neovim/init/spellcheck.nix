@@ -4,13 +4,14 @@
   lib,
   ...
 }: let
+  inherit (builtins) length;
   inherit (lib.modules) mkIf mkRenamedOptionModule;
   inherit (lib.options) mkOption mkEnableOption literalExpression;
-  inherit (lib.strings) concatLines concatStringsSep optionalString;
+  inherit (lib.strings) concatLines concatStringsSep;
   inherit (lib.attrsets) mapAttrsToList;
-  inherit (lib.types) listOf str attrsOf;
-  inherit (lib.nvim.lua) toLuaObject;
-  inherit (lib.nvim.dag) entryAfter;
+  inherit (lib.types) listOf str attrsOf bool;
+  inherit (lib.lists) optional;
+  inherit (lib.generators) mkLuaInline;
 
   cfg = config.vim.spellcheck;
 in {
@@ -29,7 +30,7 @@ in {
 
         To add your own language files, you may place your `spell` directory in either
         {file}`$XDG_CONFIG_HOME/nvf` or in a path that is included in the
-        [additionalRuntimePaths](./options.html#option-vim-additionalRuntimePaths) list provided by nvf.
+        {option}`vim.additionalRuntimePaths` list provided by nvf.
       '';
     };
 
@@ -84,6 +85,12 @@ in {
         filetype for a specific buffer.
         :::
       '';
+    };
+
+    ignoreTerminal = mkOption {
+      type = bool;
+      default = true;
+      description = "Disable spell checking in terminal.";
     };
 
     programmingWordlist.enable = mkEnableOption ''
@@ -144,20 +151,25 @@ in {
         spelllang = concatStringsSep "," cfg.languages;
       };
 
-      # Register an autocommand to disable spellchecking in buffers with given filetypes.
-      # If the list is empty, the autocommand does not need to be registered.
-      luaConfigRC.spellcheck = entryAfter ["basic"] (optionalString (cfg.ignoredFiletypes != []) ''
-        -- Disable spellchecking for certain filetypes
-        -- as configured by `vim.spellcheck.ignoredFiletypes`
-        vim.api.nvim_create_augroup("nvf_autocmds", {clear = false})
-        vim.api.nvim_create_autocmd({ "FileType" }, {
-          group = "nvf_autocmds",
-          pattern = ${toLuaObject cfg.ignoredFiletypes},
-          callback = function()
-            vim.opt_local.spell = false
-          end,
+      augroups = [{name = "nvf_spellcheck";}];
+      autocmds =
+        (optional cfg.ignoreTerminal {
+          event = ["TermOpen"];
+          group = "nvf_spellcheck";
+          callback = mkLuaInline ''
+            function() vim.opt_local.spell = false end
+          '';
         })
-      '');
+        ++ (optional (length cfg.ignoredFiletypes > 0) {
+          event = ["FileType"];
+          group = "nvf_spellcheck";
+          pattern = cfg.ignoredFiletypes;
+          callback = mkLuaInline ''
+            function()
+              vim.opt_local.spell = false
+            end
+          '';
+        });
     };
   };
 }

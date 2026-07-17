@@ -95,7 +95,7 @@ vim.api.nvim_set_keymap('n', '<leader>a', ':lua camelToSnake()<CR>', { noremap =
   and also has been removed.
 
 - `which-key.nvim` categories can now be customized through
-  [vim.binds.whichKey.register](./options.html#option-vim-binds-whichKey-register)
+  {option}`vim.binds.whichKey.register`
 
 - Added `magick` to `vim.luaPackages` for `image.nvim`.
 
@@ -125,10 +125,9 @@ vim.api.nvim_set_keymap('n', '<leader>a', ':lua camelToSnake()<CR>', { noremap =
 
 - Lualine module now allows customizing `always_divide_middle`, `ignore_focus`
   and `disabled_filetypes` through the new options:
-  [vim.statusline.lualine.alwaysDivideMiddle](./options.html#option-vim-statusline-lualine-alwaysDivideMiddle),
-  [vim.statusline.lualine.ignoreFocus](./options.html#option-vim-statusline-lualine-ignoreFocus)
-  and
-  [vim.statusline.lualine.disabledFiletypes](./options.html#option-vim-statusline-lualine-disabledFiletypes).
+  {option}`vim.statusline.lualine.alwaysDivideMiddle`,
+  {option}`vim.statusline.lualine.ignoreFocus` and
+  {option}`vim.statusline.lualine.disabledFiletypes.statusline`).
 
 - Updated all plugin inputs to their latest versions (**21.04.2024**) - this
   brought minor color changes to the Catppuccin theme.
@@ -178,6 +177,6 @@ vim.api.nvim_set_keymap('n', '<leader>a', ':lua camelToSnake()<CR>', { noremap =
 - Made Treesitter options configurable, and moved treesitter-context to
   `setupOpts` while it is enabled.
 
-- Added {option}`vim.notify.nvim-notify.setupOpts.render` which takes either a
-  string of enum, or a Lua function. The default is "compact", but you may
-  change it according to nvim-notify documentation.
+- Added `vim.notify.nvim-notify.setupOpts.render` which takes either a string of
+  enum, or a Lua function. The default is "compact", but you may change it
+  according to nvim-notify documentation.

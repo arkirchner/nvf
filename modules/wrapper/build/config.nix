@@ -24,7 +24,10 @@
     );
 
   # Build a given Treesitter grammar.
-  buildTreesitterPlug = grammars: vimPlugins.nvim-treesitter.withPlugins (_: grammars);
+  buildTreesitterPlug = grammars:
+    vimPlugins.nvim-treesitter.withPlugins (
+      _: builtins.filter (g: g != null) grammars
+    );
 
   pluginBuilders = {
     nvim-treesitter = buildTreesitterPlug config.vim.treesitter.grammars;
@@ -54,7 +57,7 @@
     # Get plugins built from source from self.packages
     # If adding a new plugin to be built from source, it must also be inherited
     # here.
-    inherit (inputs.self.packages.${pkgs.stdenv.system}) blink-cmp avante-nvim;
+    inherit (inputs.self.packages.${pkgs.stdenv.system}) blink-cmp avante-nvim cord-nvim;
   };
 
   buildConfigPlugins = plugins:
@@ -94,7 +97,7 @@
       nodeJs.enable = config.vim.withNodeJs;
       python3 = {
         enable = config.vim.withPython3;
-        extraPackages = ps: map (flip builtins.getAttr ps) config.vim.python3Packages;
+        extraPackages = ps: (map (flip builtins.getAttr ps) config.vim.python3Packages) ++ [ps.pynvim];
       };
     };
 

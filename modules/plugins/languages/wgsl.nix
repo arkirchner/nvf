@@ -4,40 +4,40 @@
   pkgs,
   ...
 }: let
-  inherit (builtins) attrNames;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf;
-  inherit (lib.options) mkEnableOption mkOption;
-  inherit (lib.types) enum;
-  inherit (lib.meta) getExe;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
+  inherit (lib.nvim.types) mkGrammarOption;
+  inherit (lib.options) mkEnableOption mkOption literalExpression;
+  inherit (lib.types) enum listOf;
+  inherit (lib) genAttrs;
 
   cfg = config.vim.languages.wgsl;
 
   defaultServers = ["wgsl-analyzer"];
-  servers = {
-    wgsl-analyzer = {
-      enable = true;
-      cmd = [(getExe pkgs.wgsl-analyzer)];
-      filetypes = ["wgsl"];
-      root_markers = [".git"];
-      settings = {};
-    };
-  };
+  servers = ["wgsl-analyzer"];
 in {
   options.vim.languages.wgsl = {
     enable = mkEnableOption "WGSL language support";
 
     treesitter = {
-      enable = mkEnableOption "WGSL treesitter" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "WGSL treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
       package = mkGrammarOption pkgs "wgsl";
     };
 
     lsp = {
-      enable = mkEnableOption "WGSL LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "WGSL LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
 
       servers = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.wgsl.lsp.servers" (enum (attrNames servers));
+        type = listOf (enum servers);
         default = defaultServers;
         description = "WGSL LSP server to use";
       };
@@ -53,12 +53,12 @@ in {
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (n: {
-          name = n;
-          value = servers.${n};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["wgsl"];
+        });
+      };
     })
   ]);
 }

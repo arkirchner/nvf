@@ -47,6 +47,24 @@
   mkRemovedFormatPackage = lang: (mkRemovedOptionModule ["vim" "languages" lang "format" "package"] ''
     `vim.languages.${lang}.format.package` is removed, please use `vim.formatter.conform-nvim.formatters.<formatter_name>.command` instead.
   '');
+
+  mkRemovedEnumListOption = optionPath: removedValue: msg: {
+    config,
+    lib,
+    ...
+  }: let
+    inherit (lib) elem attrByPath concatStringsSep;
+  in {
+    config.assertions = [
+      {
+        assertion = !(elem removedValue (attrByPath optionPath [] config));
+        message = ''
+          The value `${removedValue}` was removed from `${concatStringsSep "." optionPath}`.
+          ${msg}
+        '';
+      }
+    ];
+  };
 in {
   imports = concatLists [
     [
@@ -242,13 +260,10 @@ in {
       (mkRenamedLspServer "svelte")
       (mkRemovedLspPackage "svelte")
 
-      (mkRenamedLspServer "tailwind")
-      (mkRemovedLspPackage "tailwind")
-
       (mkRemovedLspPackage "terraform")
 
-      (mkRenamedLspServer "ts")
-      (mkRemovedLspPackage "ts")
+      (mkRenamedLspServer "typescript")
+      (mkRemovedLspPackage "typescript")
 
       (mkRenamedLspServer "typst")
       (mkRemovedLspPackage "typst")
@@ -303,7 +318,7 @@ in {
       "ruby"
       "rust"
       "sql"
-      "ts"
+      "typescript"
       "typst"
     ])
     # Migrated via batchRenameOptions. Further batch renames must be below this line.
@@ -340,6 +355,128 @@ in {
       )
       (mkRemovedOptionModule ["vim" "treesitter" "mappings" "incrementalSelection" "decrementByNode"] ''
         Incremental selection configuration has been removed from nvim-treesitter.
+      '')
+    ]
+
+    # 2026-03-19
+    [
+      (mkRenamedOptionModule ["vim" "treesitter" "foldByDefault"] ["vim" "options" "foldenable"])
+    ]
+
+    # 2026-04-13
+    [
+      (mkRenamedOptionModule ["vim" "lsp" "harper-ls" "enable"] ["vim" "lsp" "presets" "harper" "enable"])
+      (mkRenamedOptionModule ["vim" "lsp" "harper-ls" "settings"] ["vim" "lsp" "servers" "harper" "settings"])
+      (mkRenamedOptionModule ["vim" "languages" "tailwind" "enable"] ["vim" "lsp" "presets" "tailwindcss-language-server" "enable"])
+      (mkRenamedOptionModule ["vim" "languages" "tailwind" "lsp" "enable"] ["vim" "lsp" "presets" "tailwindcss-language-server" "enable"])
+      (mkRenamedOptionModule ["vim" "languages" "tailwind" "lsp" "servers"] ["vim" "lsp" "presets" "tailwindcss-language-server" "enable"])
+    ]
+
+    # 2026-04-16
+    [
+      (mkRenamedOptionModule ["vim" "languages" "ts"] ["vim" "languages" "typescript"])
+    ]
+
+    # 2026-04-19
+    [
+      (mkRenamedOptionModule ["vim" "utility" "vim-wakatime" "cli-path"] ["vim" "utility" "vim-wakatime" "setupOpts" "cli_path"])
+      (mkRenamedOptionModule ["vim" "languages" "go" "treesitter" "gotmplPackage"] ["vim" "languages" "go" "treesitter" "gotmpl" "package"])
+    ]
+
+    # 2026-05-09
+    [
+      (mkRemovedOptionModule ["vim" "notes" "mind-nvim" "enable"] ''
+        mind.nvim was deprecated 3 years ago, and the repository was recrently deleted by the author, in his move to sourcehut.
+        they migrated some repositories, but mind.nvim wasn't one of them. More information can be found here:
+        <https://strongly-typed-thoughts.net/blog/final-bye-github>
+      '')
+    ]
+
+    # 2026-05-16
+    [
+      (mkRenamedOptionModule ["vim" "languages" "typescript" "treesitter" "tsxPackage"] ["vim" "languages" "tsx" "treesitter" "package"])
+    ]
+
+    # 2026-06-02
+    [
+      (mkRemovedOptionModule ["vim" "filetree" "nvimTree" "systemOpen" "args"] ''
+        nvim-tree.lua removed system_open and now uses Neovim's vim.ui.open().
+      '')
+      (mkRemovedOptionModule ["vim" "filetree" "nvimTree" "systemOpen" "cmd"] ''
+        nvim-tree.lua removed system_open and now uses Neovim's vim.ui.open().
+      '')
+    ]
+
+    # 2026-06-05
+    [
+      (mkRemovedLspPackage "rust")
+      (mkRemovedLspOpt "rust")
+    ]
+
+    # 2026-06-12
+    [
+      (mkRemovedOptionModule ["vim" "languages" "sql" "dialect"] ''
+        This option interfered with project level configurations.
+        Linters can still be customized via `vim.diagnostics.nvim-lint.<name>.args`
+      '')
+    ]
+
+    # 2026-06-13
+    [
+      (mkRemovedOptionModule ["vim" "languages" "clang" "dap" "package"] ''
+        Please use `vim.debugger.nvim-dap.adapters.<debugger>.command` instead.
+      '')
+      (mkRemovedOptionModule ["vim" "languages" "zig" "dap" "package"] ''
+        Please use `vim.debugger.nvim-dap.adapters.<debugger>.command` instead.
+      '')
+      (mkRemovedOptionModule ["vim" "languages" "python" "dap" "package"] ''
+        Please use `vim.debugger.nvim-dap.adapters.<debugger>.command` instead.
+        Also see `vim.debugger.nvim-dap.configurations.python` if you want
+        to use a custom python/additional libraries as your debuggee
+      '')
+      (mkRemovedOptionModule ["vim" "languages" "odin" "dap" "package"] ''
+        Please use `vim.debugger.nvim-dap.adapters.<debugger>.command` instead.
+      '')
+      (mkRemovedOptionModule ["vim" "languages" "java" "dap" "package"] ''
+        Please use `vim.debugger.nvim-dap.adapters.<debugger>.command` instead.
+      '')
+      (mkRenamedOptionModule
+        ["vim" "languages" "php" "dap" "xdebug" "adapter"]
+        ["vim" "debugger" "nvim-dap" "adapters" "xdebug"])
+      (mkRemovedOptionModule ["vim" "languages" "php" "dap" "xdebug" "port"] ''
+        Please use a custom `vim.debugger.nvim-dap.configurations.php`
+        instead.
+      '')
+    ]
+
+    # 2026-06-15
+    [
+      (mkRemovedOptionModule ["vim" "languages" "cmake" "format" "package"] ''
+        `vim.languages.cmake.format.package` is removed.
+        The package is now managed by the conform-nvim preset.
+        Use `vim.formatter.conform-nvim.presets.gersemi.enable` to enable it,
+        and `vim.formatter.conform-nvim.setupOpts.formatters.gersemi.command` to customize its command.
+      '')
+      (mkRemovedOptionModule ["vim" "languages" "markdown" "format" "extraFiletypes"] ''
+        `vim.languages.markdown.format.extraFiletypes` is removed.
+        Filetype association is now handled automatically by the conform-nvim presets.
+        Use `vim.formatter.conform-nvim.setupOpts.formatters_by_ft.<ft> = ["<formatter>", ...]` to register extra formatters per filetype.
+      '')
+    ]
+
+    # 2026-06-25
+    [
+      (mkRenamedOptionModule ["vim" "languages" "rust" "dap" "adapter"] ["vim" "languages" "rust" "dap" "debugger"])
+      (mkRenamedOptionModule ["vim" "languages" "rust" "dap" "package"] ["vim" "languages" "rust" "dap" "debugger"])
+    ]
+
+    # 2026-07-03
+    [
+      (mkRemovedEnumListOption ["vim" "languages" "html" "lsp" "servers"] "angular-language-server" ''
+        Use `languages.angular.lsp.servers` instead.
+      '')
+      (mkRemovedEnumListOption ["vim" "languages" "typescript" "lsp" "servers"] "angular-language-server" ''
+        Use `languages.angular.lsp.servers` instead.
       '')
     ]
   ];

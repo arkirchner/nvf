@@ -5,171 +5,48 @@
   ...
 }: let
   inherit (builtins) attrNames;
-  inherit (lib.options) mkEnableOption mkOption;
-  inherit (lib.types) bool enum package;
-  inherit (lib.meta) getExe;
+  inherit (lib.options) mkEnableOption mkOption literalExpression;
+  inherit (lib.types) bool enum listOf;
+  inherit (lib) genAttrs;
   inherit (lib.modules) mkIf mkMerge;
   inherit (lib.generators) mkLuaInline;
-  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
+  inherit (lib.nvim.types) mkGrammarOption;
   inherit (lib.nvim.dag) entryAfter;
+  inherit (lib.nvim.types) deprecatedSingleOrListOf enumWithRename;
 
   cfg = config.vim.languages.clang;
 
   defaultServers = ["clangd"];
-  servers = {
-    ccls = {
-      cmd = [(getExe pkgs.ccls)];
-      filetypes = ["c" "cpp" "objc" "objcpp" "cuda"];
-      offset_encoding = "utf-32";
-      root_markers = ["compile_commands.json" ".ccls" ".git"];
-      workspace_required = true;
-      on_attach = mkLuaInline ''
-        function(client, bufnr)
-          local function switch_source_header(bufnr)
-            local method_name = "textDocument/switchSourceHeader"
-            local params = vim.lsp.util.make_text_document_params(bufnr)
-            client:request(method_name, params, function(err, result)
-              if err then
-                error(tostring(err))
-              end
-              if not result then
-                vim.notify('corresponding file cannot be determined')
-                return
-              end
-              vim.cmd.edit(vim.uri_to_fname(result))
-            end, bufnr)
+  servers = ["ccls" "clangd"];
+
+  defaultDebugger = ["lldb"];
+  dapConfigurations = {
+    lldb = [
+      {
+        name = "Launch";
+        type = "lldb";
+        request = "launch";
+        program = mkLuaInline ''
+          function()
+            return nvf_dap_cached_input(
+              'clang_lldb_launch_exe',
+              "Path to executable: ",
+              vim.fn.getcwd() .. "/",
+              "file")
           end
-
-          vim.api.nvim_buf_create_user_command(
-            bufnr,
-            "LspCclsSwitchSourceHeader",
-            function(arg)
-              switch_source_header(client, 0)
-            end,
-            {desc = "Switch between source/header"}
-          )
-        end
-      '';
-    };
-
-    clangd = {
-      cmd = ["${pkgs.clang-tools}/bin/clangd"];
-      filetypes = ["c" "cpp" "objc" "objcpp" "cuda" "proto"];
-      root_markers = [
-        ".clangd"
-        ".clang-tidy"
-        ".clang-format"
-        "compile_commands.json"
-        "compile_flags.txt"
-        "configure.ac"
-        ".git"
-      ];
-      capabilities = {
-        textDocument = {
-          completion = {
-            editsNearCursor = true;
-          };
-        };
-        offsetEncoding = ["utf-8" "utf-16"];
-      };
-      on_attach = mkLuaInline ''
-        function(client, bufnr)
-          local function switch_source_header(bufnr)
-            local method_name = "textDocument/switchSourceHeader"
-            local client = vim.lsp.get_clients({ bufnr = bufnr, name = "clangd", })[1]
-            if not client then
-              return vim.notify(('method %s is not supported by any servers active on the current buffer'):format(method_name))
-            end
-            local params = vim.lsp.util.make_text_document_params(bufnr)
-            client.request(method_name, params, function(err, result)
-              if err then
-                error(tostring(err))
-              end
-              if not result then
-                vim.notify('corresponding file cannot be determined')
-                return
-              end
-              vim.cmd.edit(vim.uri_to_fname(result))
-            end, bufnr)
-          end
-
-          local function symbol_info()
-            local bufnr = vim.api.nvim_get_current_buf()
-            local clangd_client = vim.lsp.get_clients({ bufnr = bufnr, name = "clangd" })[1]
-            if not clangd_client or not clangd_client.supports_method 'textDocument/symbolInfo' then
-              return vim.notify('Clangd client not found', vim.log.levels.ERROR)
-            end
-            local win = vim.api.nvim_get_current_win()
-            local params = vim.lsp.util.make_position_params(win, clangd_client.offset_encoding)
-            clangd_client:request('textDocument/symbolInfo', params, function(err, res)
-              if err or #res == 0 then
-                -- Clangd always returns an error, there is not reason to parse it
-                return
-              end
-              local container = string.format('container: %s', res[1].containerName) ---@type string
-              local name = string.format('name: %s', res[1].name) ---@type string
-              vim.lsp.util.open_floating_preview({ name, container }, "", {
-                height = 2,
-                width = math.max(string.len(name), string.len(container)),
-                focusable = false,
-                focus = false,
-                border = 'single',
-                title = 'Symbol Info',
-              })
-            end, bufnr)
-          end
-
-          vim.api.nvim_buf_create_user_command(
-            bufnr,
-            "ClangdSwitchSourceHeader",
-            function(arg)
-              switch_source_header(0)
-            end,
-            {desc = "Switch between source/header"}
-          )
-
-          vim.api.nvim_buf_create_user_command(
-            bufnr,
-            "ClangdShowSymbolInfo",
-            function(arg)
-              symbol_info()
-            end,
-            {desc = "Show symbol info"}
-          )
-        end
-      '';
-    };
+        '';
+        cwd = "\${workspaceFolder}";
+        stopOnEntry = false;
+        args = [];
+      }
+    ];
   };
 
-  defaultDebugger = "lldb-vscode";
-  debuggers = {
-    lldb-vscode = {
-      package = pkgs.lldb;
-      dapConfig = ''
-        dap.adapters.lldb = {
-          type = 'executable',
-          command = '${cfg.dap.package}/bin/lldb-dap',
-          name = 'lldb'
-        }
-        dap.configurations.cpp = {
-          {
-            name = 'Launch',
-            type = 'lldb',
-            request = 'launch',
-            program = function()
-              return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
-            end,
-            cwd = "''${workspaceFolder}",
-            stopOnEntry = false,
-            args = {},
-          },
-        }
+  defaultFormat = ["clang-format"];
+  formats = ["clang-format" "indent" "astyle"];
 
-        dap.configurations.c = dap.configurations.cpp
-      '';
-    };
-  };
+  defaultDiagnosticsProvider = ["cpplint"];
+  diagnosticsProviders = ["cpplint"];
 in {
   options.vim.languages.clang = {
     enable = mkEnableOption "C/C++ language support";
@@ -184,17 +61,27 @@ in {
     };
 
     treesitter = {
-      enable = mkEnableOption "C/C++ treesitter" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "C/C++ treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
       cPackage = mkGrammarOption pkgs "c";
       cppPackage = mkGrammarOption pkgs "cpp";
     };
 
     lsp = {
-      enable = mkEnableOption "clang LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "clang LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
 
       servers = mkOption {
         description = "The clang LSP server to use";
-        type = deprecatedSingleOrListOf "vim.language.clang.lsp.servers" (enum (attrNames servers));
+        type = listOf (enum servers);
         default = defaultServers;
       };
     };
@@ -204,16 +91,46 @@ in {
         description = "Enable clang Debug Adapter";
         type = bool;
         default = config.vim.languages.enableDAP;
+        defaultText = literalExpression "config.vim.languages.enableDAP";
       };
       debugger = mkOption {
         description = "clang debugger to use";
-        type = enum (attrNames debuggers);
+        type =
+          deprecatedSingleOrListOf "vim.languages.clang.dap.debugger"
+          (enumWithRename "vim.languages.clang.dap.debugger" (attrNames dapConfigurations) {
+            lldb-vscode = "lldb";
+          });
         default = defaultDebugger;
       };
-      package = mkOption {
-        description = "clang debugger package.";
-        type = package;
-        default = debuggers.${cfg.dap.debugger}.package;
+    };
+
+    format = {
+      enable =
+        mkEnableOption "C formatting"
+        // {
+          default = config.vim.languages.enableFormat;
+          defaultText = literalExpression "config.vim.languages.enableFormat";
+        };
+
+      type = mkOption {
+        type = listOf (enum formats);
+        default = defaultFormat;
+        description = "C formatter to use";
+      };
+    };
+
+    extraDiagnostics = {
+      enable =
+        mkEnableOption "extra C/C++ diagnostics via nvim-lint"
+        // {
+          default = config.vim.languages.enableExtraDiagnostics;
+          defaultText = literalExpression "config.vim.languages.enableExtraDiagnostics";
+        };
+
+      types = mkOption {
+        type = listOf (enum diagnosticsProviders);
+        default = defaultDiagnosticsProvider;
+        description = "extra C/C++ diagnostics providers";
       };
     };
   };
@@ -229,17 +146,49 @@ in {
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (name: {
-          inherit name;
-          value = servers.${name};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["c" "cpp" "objc" "objcpp" "cuda" "proto"];
+        });
+      };
     })
 
     (mkIf cfg.dap.enable {
-      vim.debugger.nvim-dap.enable = true;
-      vim.debugger.nvim-dap.sources.clang-debugger = debuggers.${cfg.dap.debugger}.dapConfig;
+      vim.debugger.nvim-dap = let
+        conf = mkMerge (map (name: dapConfigurations.${name}) cfg.dap.debugger);
+      in {
+        enable = true;
+        presets = genAttrs cfg.dap.debugger (_: {enable = true;});
+        configurations = {
+          c = conf;
+          cpp = conf;
+        };
+      };
+    })
+
+    (mkIf cfg.format.enable {
+      vim.formatter.conform-nvim = {
+        enable = true;
+        presets = genAttrs cfg.format.type (_: {enable = true;});
+        setupOpts.formatters_by_ft = {
+          c = cfg.format.type;
+          cpp = cfg.format.type;
+        };
+      };
+    })
+
+    (mkIf cfg.extraDiagnostics.enable {
+      vim.diagnostics = {
+        presets = genAttrs cfg.extraDiagnostics.types (_: {enable = true;});
+        nvim-lint = {
+          enable = true;
+          linters_by_ft = {
+            c = cfg.extraDiagnostics.types;
+            cpp = cfg.extraDiagnostics.types;
+          };
+        };
+      };
     })
   ]);
 }

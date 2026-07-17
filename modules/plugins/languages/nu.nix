@@ -4,33 +4,14 @@
   config,
   ...
 }: let
-  inherit (lib.options) mkEnableOption mkOption;
-  inherit (lib.types) enum;
+  inherit (lib.options) mkEnableOption mkOption literalExpression;
+  inherit (lib.types) enum listOf;
   inherit (lib.modules) mkIf mkMerge;
-  inherit (lib.nvim.types) mkGrammarOption deprecatedSingleOrListOf;
-  inherit (lib.meta) getExe;
-  inherit (lib.generators) mkLuaInline;
-  inherit (lib.nvim.attrsets) mapListToAttrs;
-  inherit (builtins) attrNames;
+  inherit (lib.nvim.types) mkGrammarOption;
+  inherit (lib) genAttrs;
 
   defaultServers = ["nushell"];
-  servers = {
-    nushell = {
-      enable = true;
-      cmd = [(getExe pkgs.nushell) "--no-config-file" "--lsp"];
-      filetypes = ["nu"];
-      root_dir =
-        mkLuaInline
-        /*
-        lua
-        */
-        ''
-          function(bufnr, on_dir)
-            on_dir(vim.fs.root(bufnr, { '.git' }) or vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr)))
-          end
-        '';
-    };
-  };
+  servers = ["nushell"];
 
   cfg = config.vim.languages.nu;
 in {
@@ -38,15 +19,25 @@ in {
     enable = mkEnableOption "Nu language support";
 
     treesitter = {
-      enable = mkEnableOption "Nu treesitter" // {default = config.vim.languages.enableTreesitter;};
+      enable =
+        mkEnableOption "Nu treesitter"
+        // {
+          default = config.vim.languages.enableTreesitter;
+          defaultText = literalExpression "config.vim.languages.enableTreesitter";
+        };
       package = mkGrammarOption pkgs "nu";
     };
 
     lsp = {
-      enable = mkEnableOption "Nu LSP support" // {default = config.vim.lsp.enable;};
+      enable =
+        mkEnableOption "Nu LSP support"
+        // {
+          default = config.vim.lsp.enable;
+          defaultText = literalExpression "config.vim.lsp.enable";
+        };
 
       servers = mkOption {
-        type = deprecatedSingleOrListOf "vim.language.nu.lsp.servers" (enum (attrNames servers));
+        type = listOf (enum servers);
         default = defaultServers;
         description = "Nu LSP server to use";
       };
@@ -60,12 +51,12 @@ in {
     })
 
     (mkIf cfg.lsp.enable {
-      vim.lsp.servers =
-        mapListToAttrs (n: {
-          name = n;
-          value = servers.${n};
-        })
-        cfg.lsp.servers;
+      vim.lsp = {
+        presets = genAttrs cfg.lsp.servers (_: {enable = true;});
+        servers = genAttrs cfg.lsp.servers (_: {
+          filetypes = ["nu"];
+        });
+      };
     })
   ]);
 }

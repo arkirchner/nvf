@@ -2,6 +2,7 @@
   imports = [
     ./binds
     ./ccc
+    ./csvview
     ./diffview
     ./direnv
     ./fzf-lua
@@ -26,9 +27,10 @@
     ./snacks-nvim
     ./surround
     ./telescope
-    ./wakatime
+    ./vim-wakatime
     ./yanky-nvim
     ./yazi-nvim
     ./undotree
+    ./crazy-coverage
   ];
 }
